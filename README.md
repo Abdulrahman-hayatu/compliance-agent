@@ -1,3 +1,14 @@
+---
+title: Nigerian Fintech Compliance Agent
+emoji: 🔥
+colorFrom: red
+colorTo: red
+sdk: gradio
+sdk_version: 6.14.0
+python_version: '3.13'
+app_file: app.py
+pinned: false
+license: apache 2.0
 # 🇳🇬 Nigerian Fintech Regulatory Compliance Agent
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
