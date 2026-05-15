@@ -14,6 +14,11 @@ import gradio as gr
 import pdfplumber
 from dotenv import load_dotenv
 
+from rag.hub_loader import ensure_index_available
+
+# Download index artifacts from HF Hub if running on Spaces
+ensure_index_available()
+
 from graph.workflow import compliance_graph
 from agents.parser_agent import parser_agent
 from agents.retrieval_agent import retrieval_agent
@@ -25,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# helper function to extract text from uploaded files, supporting PDF and TXT formats
+# Text extraction function for PDF and TXT files, with error handling for unsupported formats and empty extractions.
 def extract_text(file_path: str) -> str:
     """
     Extract text from a PDF or TXT file.
@@ -60,27 +65,26 @@ def extract_text(file_path: str) -> str:
     return text
 
 
-# The main pipeline function that runs the four agents in sequence, yielding status updates and the final report for the Gradio UI.
-
+# Pipeline runner function that executes the four agents in sequence, yielding status updates and the final report for the Gradio UI.
 def run_compliance_check(file):
     """
     Generator function that runs the four-agent pipeline step by step,
     yielding (status, report) tuples so Gradio can update the UI in real time.
     """
 
-    # Guard clause for no file uploaded
+    # Guard: no file uploaded — yield a message and exit early
     if file is None:
         yield "Please upload a document before running.", ""
         return
 
-    # Extract text from the uploaded file, handling errors gracefully
+    # Extract text from the uploaded file, yielding an error message if extraction fails
     try:
         extracted_text = extract_text(file.name)
     except Exception as exc:
         yield f"File extraction error: {exc}", ""
         return
 
-    # Initialize the shared state for the pipeline with the extracted text and empty placeholders for subsequent data.
+    # Initialise state with the extracted text and empty placeholders for all subsequent data
     state = {
         "uploaded_text":     extracted_text,
         "policy_claims":     [],
@@ -91,7 +95,7 @@ def run_compliance_check(file):
     }
 
     try:
-        # Agent 1: Parser
+        # Agent 1: Parser 
         yield "Parsing document claims...", ""
         state = parser_agent(state)
         yield state["status"], ""
@@ -117,7 +121,7 @@ def run_compliance_check(file):
         yield f"Pipeline error: {exc}", ""
 
 
-# Gradio UI
+# Gradio UI 
 
 with gr.Blocks(title="Nigerian Fintech Compliance Agent") as demo:
 
