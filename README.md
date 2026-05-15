@@ -1,30 +1,58 @@
-# Nigerian Fintech Regulatory Compliance Agent
+# 🇳🇬 Nigerian Fintech Regulatory Compliance Agent
 
-A multi-agent LLM application that checks fintech policy documents against Nigerian regulatory frameworks. Upload a PDF or TXT policy document and the pipeline extracts discrete policy claims, retrieves relevant regulatory clauses from a pre-built vector index, assesses each claim for compliance, and generates a structured markdown report with a remediation checklist. The tool currently covers two frameworks: the **CBN Circular and Guidelines for the Operations of Agent Banking in Nigeria (October 6, 2025)** and the **Nigeria Data Protection Act 2023 (NDPC)**.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-1C3C3C?logo=langchain&logoColor=white)](https://langchain-ai.github.io/langgraph/)
+[![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-F55036?logo=groq&logoColor=white)](https://console.groq.com)
+[![Gradio](https://img.shields.io/badge/Gradio-UI-FF7C00?logo=gradio&logoColor=white)](https://gradio.app)
+[![HuggingFace](https://img.shields.io/badge/🤗%20Spaces-Live%20Demo-FFD21E)](https://huggingface.co/spaces/Abdulrahman-Hayatu/Nigerian-fintech-compliance-agent)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
+A multi-agent LLM application that checks fintech policy documents against Nigerian regulatory frameworks. Upload a PDF or TXT policy document and the pipeline extracts discrete policy claims, retrieves relevant regulatory clauses from a pre-built FAISS vector index, assesses each claim for compliance, and produces a structured markdown report with a prioritised remediation checklist. The tool covers two frameworks: the **CBN Circular and Guidelines for the Operations of Agent Banking in Nigeria (October 6, 2025)** and the **Nigeria Data Protection Act 2023 (NDPC)**.
+
+**[🚀 Try the Live Demo](https://huggingface.co/spaces/Abdulrahman-Hayatu/Nigerian-fintech-compliance-agent)**
 
 ---
 
 ## ⚠️ Scope Notice
 
-> This tool covers **CBN Agent Banking Guidelines (October 2025)** and the **Nigeria Data Protection Act 2023** only. It does not cover all CBN regulations.
+> This tool covers the **CBN Agent Banking Guidelines (October 2025)** and the **Nigeria Data Protection Act 2023** only. It does not cover all CBN regulations. Outputs do not constitute legal advice always consult a qualified compliance officer.
+
+---
+
+## How It Works
+
+The pipeline is built with **LangGraph** and runs four specialised agents in sequence:
+
+| Step | Agent | Role |
+|------|-------|------|
+| 1 | **Parser Agent** | Extracts discrete, testable policy claims from the uploaded document as a JSON array |
+| 2 | **Retrieval Agent** | Queries the FAISS index to fetch the top-4 most relevant regulatory chunks per claim |
+| 3 | **Compliance Checker Agent** | Assesses each claim against its regulatory context — returns `COMPLIANT`, `NON_COMPLIANT`, or `UNCLEAR` with a clause reference and explanation |
+| 4 | **Report Generator Agent** | Produces a structured markdown report with executive summary, scorecard, findings, and remediation checklist |
 
 ---
 
 ## Tech Stack
 
-- **Language:** Python 3.10+
-- **Agent Framework:** LangGraph
-- **LLM API:** Groq (`llama-3.3-70b-versatile`)
-- **Embeddings:** `sentence-transformers` (`BAAI/bge-small-en-v1.5`)
-- **Vector Store:** FAISS (`IndexFlatL2`)
-- **Document Parsing:** `pdfplumber`
-- **UI:** Gradio
-- **Deployment:** Hugging Face Spaces
+| Component | Technology |
+|-----------|-----------|
+| Language | Python 3.10+ |
+| Agent Framework | LangGraph |
+| LLM API | Groq (`llama-3.3-70b-versatile`) |
+| Embeddings | `sentence-transformers` (`BAAI/bge-small-en-v1.5`) |
+| Vector Store | FAISS (`IndexFlatL2`) |
+| Document Parsing | `pdfplumber` |
+| UI | Gradio |
+| Deployment | Hugging Face Spaces |
 
 ---
 
-## Setup
+## Local Setup
+
+### Prerequisites
+
+- Python 3.10+
+- A free Groq API key from [console.groq.com](https://console.groq.com)
 
 ### 1. Clone the repository
 
@@ -39,31 +67,28 @@ cd compliance-agent
 pip install -r requirements.txt
 ```
 
-### 3. Add your API key
-
-Copy the example env file and add your Groq API key:
+### 3. Configure environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and set:
+Open `.env` and set your key:
 
-```
+```env
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
-Get a free API key at [console.groq.com](https://console.groq.com).
-
 ### 4. Build the FAISS index
 
-Run the indexer **once** before starting the app. This reads both regulatory PDFs from `data/`, chunks and embeds them, and saves the index to `index/`.
+Run the indexer **once** before starting the app. It reads both regulatory PDFs from `data/`, chunks and embeds them, and saves the artifacts to `index/`.
 
 ```bash
 python -m rag.indexer
 ```
 
 Expected output:
+
 ```
 CBN chunks : 41
 NDPC chunks: 13
@@ -71,27 +96,84 @@ Total      : 54
 ✓ Indexing complete.
 ```
 
+> ⚠️ **Do not run the indexer at app startup.** The index is pre-built and committed to the repo.
+
 ### 5. Run the app
 
 ```bash
 python app.py
 ```
 
-Open the local URL printed in the terminal (e.g. `http://127.0.0.1:7860`).
+Open the local URL printed in your terminal (e.g. `http://127.0.0.1:7860`).
 
 ---
 
-## How It Works
+## Deployment to Hugging Face Spaces
 
-The pipeline is built with **LangGraph** and runs four agents in sequence:
+### Prerequisites
 
-1. **Parser Agent** — Sends the uploaded document text to the Groq LLM, which extracts discrete, testable policy claims as a JSON array. Each claim is a single sentence describing what the document asserts about operations, data handling, agent relationships, customer treatment, or security.
+```bash
+pip install huggingface_hub
+```
 
-2. **Retrieval Agent** — For each extracted claim, queries the pre-built FAISS vector index using `BAAI/bge-small-en-v1.5` embeddings to retrieve the four most semantically relevant regulatory chunks from the CBN and NDPC documents.
+### Step 1 — Authenticate
 
-3. **Compliance Checker Agent** — Sends each claim alongside its retrieved regulatory context to the Groq LLM, which returns a structured JSON verdict: `COMPLIANT`, `NON_COMPLIANT`, or `UNCLEAR`, with a specific regulation reference, a one-sentence explanation, and a remediation action where applicable.
+```bash
+hf login
+```
 
-4. **Report Generator Agent** — Passes all compliance results to the Groq LLM to produce a structured markdown report containing an executive summary, a compliance scorecard, detailed per-claim findings, a prioritised remediation checklist, and a scope limitations note.
+Generate a **Write** access token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) and paste it when prompted.
+
+### Step 2 — Create the Space
+
+```bash
+hf repo create nigerian-fintech-compliance-agent \
+  --type space \
+  --space_sdk gradio
+```
+
+### Step 3 — Add the Space as a git remote
+
+```bash
+git remote add space https://huggingface.co/spaces/YOUR_USERNAME/nigerian-fintech-compliance-agent
+```
+
+### Step 4 — Set your API key as a Space Secret
+
+```bash
+hf secret set GROQ_API_KEY \
+  --repo-type space \
+  --repo YOUR_USERNAME/nigerian-fintech-compliance-agent
+```
+
+Paste your Groq API key when prompted. This injects it as an environment variable at runtime — never commit your `.env` file.
+
+### Step 5 — Push and deploy
+
+```bash
+git push space main
+```
+
+> If HF created an initial commit, use `git push space main --force`
+
+### Step 6 — Verify
+
+Once the Space shows **Running** (3–5 min on first build), open:
+
+```
+https://huggingface.co/spaces/YOUR_USERNAME/nigerian-fintech-compliance-agent
+```
+
+Upload a test document and confirm all 4 agent stages complete successfully.
+
+### Updating the deployment
+
+```bash
+git add .
+git commit -m "your change description"
+git push origin main   # GitHub
+git push space main    # Hugging Face Spaces
+```
 
 ---
 
@@ -99,24 +181,27 @@ The pipeline is built with **LangGraph** and runs four agents in sequence:
 
 ```
 compliance-agent/
-├── app.py                  # Gradio UI entry point
+├── app.py                    # Gradio UI entry point
 ├── agents/
-│   ├── parser_agent.py     # Agent 1: Document Parser
-│   ├── retrieval_agent.py  # Agent 2: Retrieval Agent
-│   ├── checker_agent.py    # Agent 3: Compliance Checker
-│   └── report_agent.py     # Agent 4: Report Generator
+│   ├── __init__.py
+│   ├── parser_agent.py       # Agent 1: Document Parser
+│   ├── retrieval_agent.py    # Agent 2: Retrieval Agent
+│   ├── checker_agent.py      # Agent 3: Compliance Checker
+│   └── report_agent.py       # Agent 4: Report Generator
 ├── graph/
-│   ├── state.py            # ComplianceState TypedDict
-│   └── workflow.py         # LangGraph state graph definition
+│   ├── __init__.py
+│   ├── state.py              # ComplianceState TypedDict
+│   └── workflow.py           # LangGraph state graph definition
 ├── rag/
-│   ├── indexer.py          # Script to build and save FAISS index
-│   └── retriever.py        # FAISS query interface
+│   ├── __init__.py
+│   ├── indexer.py            # Script to build and save FAISS index (run once)
+│   └── retriever.py          # FAISS query interface (singleton)
 ├── data/
 │   ├── CIRCULAR AND GUIDELINES FOR THE OPERATIONS OF AGENT BANKING IN NIGERIA OCTOBER 6 2025.pdf
 │   └── Nigeria_Data_Protection_Act_2023.pdf
 ├── index/
-│   ├── compliance_index.faiss
-│   └── chunks.pkl
+│   ├── compliance_index.faiss   # Pre-built FAISS index (committed to repo)
+│   └── chunks.pkl               # Serialized text chunks (committed to repo)
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -124,4 +209,12 @@ compliance-agent/
 
 ---
 
-> Do **not** run `rag/indexer.py` at app startup — the index is pre-built and committed to the repo.
+## Author
+
+**Abdulrahman Hayatu Usman**  
+BSc Computer Science — Ahmadu Bello University, Zaria
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?logo=linkedin&logoColor=white)](https://linkedin.com/in/abdulrahman-hayatu)
+[![GitHub](https://img.shields.io/badge/GitHub-Profile-181717?logo=github&logoColor=white)](https://github.com/Abdulrahman-Hayatu)
+[![Email](https://img.shields.io/badge/Email-Contact-EA4335?logo=gmail&logoColor=white)](mailto:hayatuusmanabdulrahman@gmail.com)
+[![HuggingFace](https://img.shields.io/badge/🤗%20HuggingFace-Profile-FFD21E)](https://huggingface.co/Abdulrahman-Hayatu)

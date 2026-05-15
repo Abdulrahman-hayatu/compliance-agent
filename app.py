@@ -2,7 +2,6 @@
 app.py
 
 Gradio UI entry point for the Nigerian Fintech Regulatory Compliance Agent.
-Run with: python app.py
 """
 
 from __future__ import annotations
@@ -26,8 +25,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# ── Text extraction ────────────────────────────────────────────────────────────
-
+# helper function to extract text from uploaded files, supporting PDF and TXT formats
 def extract_text(file_path: str) -> str:
     """
     Extract text from a PDF or TXT file.
@@ -62,7 +60,7 @@ def extract_text(file_path: str) -> str:
     return text
 
 
-# ── Pipeline runner (generator for streaming status) ─────────────────────────
+# The main pipeline function that runs the four agents in sequence, yielding status updates and the final report for the Gradio UI.
 
 def run_compliance_check(file):
     """
@@ -70,19 +68,19 @@ def run_compliance_check(file):
     yielding (status, report) tuples so Gradio can update the UI in real time.
     """
 
-    # ── Guard: no file uploaded ───────────────────────────────────────────────
+    # Guard clause for no file uploaded
     if file is None:
         yield "Please upload a document before running.", ""
         return
 
-    # ── Extract text ──────────────────────────────────────────────────────────
+    # Extract text from the uploaded file, handling errors gracefully
     try:
         extracted_text = extract_text(file.name)
     except Exception as exc:
         yield f"File extraction error: {exc}", ""
         return
 
-    # ── Initialise state ──────────────────────────────────────────────────────
+    # Initialize the shared state for the pipeline with the extracted text and empty placeholders for subsequent data.
     state = {
         "uploaded_text":     extracted_text,
         "policy_claims":     [],
@@ -93,22 +91,22 @@ def run_compliance_check(file):
     }
 
     try:
-        # ── Agent 1: Parser ───────────────────────────────────────────────────
+        # Agent 1: Parser
         yield "Parsing document claims...", ""
         state = parser_agent(state)
         yield state["status"], ""
 
-        # ── Agent 2: Retrieval ────────────────────────────────────────────────
+        # Agent 2: Retrieval 
         yield "Retrieving relevant regulations...", ""
         state = retrieval_agent(state)
         yield state["status"], ""
 
-        # ── Agent 3: Checker ──────────────────────────────────────────────────
+        # Agent 3: Checker 
         yield "Checking compliance against CBN and NDPC regulations...", ""
         state = checker_agent(state)
         yield state["status"], ""
 
-        # ── Agent 4: Reporter ─────────────────────────────────────────────────
+        # Agent 4: Reporter 
         yield "Generating compliance report...", ""
         state = report_agent(state)
 
@@ -119,7 +117,7 @@ def run_compliance_check(file):
         yield f"Pipeline error: {exc}", ""
 
 
-# ── Gradio UI ──────────────────────────────────────────────────────────────────
+# Gradio UI
 
 with gr.Blocks(title="Nigerian Fintech Compliance Agent") as demo:
 
