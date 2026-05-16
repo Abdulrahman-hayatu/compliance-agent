@@ -151,11 +151,11 @@ HF_TOKEN=your_hf_write_token_here
 Run this once locally after building the FAISS index:
 
 ```bash
-python -m rag.upload_index --repo YOUR_USERNAME/compliance-index
+python -m rag.upload_index --repo Abdulrahman-Hayatu/compliance-index
 ```
 
 This creates a public dataset repo and uploads `compliance_index.faiss` and `chunks.pkl` to it. Verify at:
-`https://huggingface.co/datasets/YOUR_USERNAME/compliance-index`
+`https://huggingface.co/datasets/Abdulrahman_hayatu/compliance-index`
 
 ---
 
@@ -172,7 +172,7 @@ huggingface-cli repo create nigerian-fintech-compliance-agent \
 ### Step 4 — Add the Space as a git remote
 
 ```bash
-git remote add space https://huggingface.co/spaces/YOUR_USERNAME/nigerian-fintech-compliance-agent
+git remote add space https://huggingface.co/spaces/Abdulrahman-Hayatu/nigerian-fintech-compliance-agent
 ```
 
 ---
@@ -185,15 +185,15 @@ The app needs two secrets at runtime — never commit these to git:
 # Your Groq API key
 huggingface-cli secret set GROQ_API_KEY \
   --repo-type space \
-  --repo YOUR_USERNAME/nigerian-fintech-compliance-agent
+  --repo Abdulrahman-Hayatu/nigerian-fintech-compliance-agent
 
 # The HF dataset repo holding the index artifacts
 huggingface-cli secret set HF_INDEX_REPO \
   --repo-type space \
-  --repo YOUR_USERNAME/nigerian-fintech-compliance-agent
+  --repo Abdulrahman-Hayatu/nigerian-fintech-compliance-agent
 ```
 
-When prompted for `HF_INDEX_REPO`, enter: `YOUR_USERNAME/compliance-index`
+When prompted for `HF_INDEX_REPO`, enter: `Abdulrahman-Hayatu/compliance-index`
 
 ---
 
@@ -214,7 +214,7 @@ At startup, the app will detect that the index is missing and automatically down
 Once the Space shows **Running** (3–5 min on first build), open:
 
 ```
-https://huggingface.co/spaces/YOUR_USERNAME/nigerian-fintech-compliance-agent
+https://huggingface.co/spaces/Abdulrahman-Hayatu/nigerian-fintech-compliance-agent
 ```
 
 Upload a test policy document and confirm all 4 agent stages complete and a report is generated.

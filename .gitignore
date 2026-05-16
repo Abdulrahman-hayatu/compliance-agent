@@ -44,6 +44,4 @@ temp/
 
 # datafiles
 data/*.pdf
-# models
-index/chunks.pkl
-compliance_index.faiss
+
