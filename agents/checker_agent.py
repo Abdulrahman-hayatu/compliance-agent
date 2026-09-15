@@ -11,17 +11,20 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 
-from groq import Groq
+from groq import Groq, RateLimitError
 from graph.state import ComplianceState
 from agents.parser_agent import _get_client   # reuse key-validation helper
 
 logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-MODEL       = "llama-3.3-70b-versatile"
+MODEL       = "openai/gpt-oss-120b"
 MAX_TOKENS  = 512
 TEMPERATURE = 0.0
+MAX_RETRIES = 3       # per Groq's own recommended pattern for transient API/JSON-validation failures
+RETRY_BACKOFF_BASE_SECONDS = 1.5   # attempt 1: 1.5s, attempt 2: 3.0s
 
 VALID_STATUSES = {"COMPLIANT", "NON_COMPLIANT", "UNCLEAR"}
 REQUIRED_KEYS  = {"status", "regulation_reference", "explanation", "remediation"}
@@ -35,10 +38,20 @@ SYSTEM_PROMPT = (
     "- COMPLIANT: clearly aligned with regulations\n"
     "- NON_COMPLIANT: clearly violates or contradicts regulations\n"
     "- UNCLEAR: insufficient information to determine compliance\n\n"
+    "Each excerpt in REGULATORY CONTEXT is labelled with its source and "
+    "section, e.g. '[CBN 9.1]' or '[NDPA PART VI]'. When you cite a "
+    "regulation, use exactly one of these labels — do not invent a section "
+    "number that is not shown in the context.\n\n"
+    "If NONE of the provided excerpts actually address the claim — the "
+    "retrieved context is simply the nearest match found, not a guarantee "
+    "of relevance — set status to UNCLEAR and set regulation_reference to "
+    "\"N/A\". Do not cite one of the labels just because it was offered; "
+    "only cite a label when that excerpt genuinely supports your "
+    "explanation.\n\n"
     "Return ONLY a JSON object with this exact structure:\n"
     "{\n"
     '  "status": "COMPLIANT" | "NON_COMPLIANT" | "UNCLEAR",\n'
-    '  "regulation_reference": "specific section or clause cited",\n'
+    '  "regulation_reference": "one of the [SOURCE section] labels shown above, e.g. \'CBN 9.1\', or \'N/A\' if no excerpt is relevant",\n'
     '  "explanation": "one sentence explanation",\n'
     '  "remediation": "specific action needed, or null if compliant"\n'
     "}\n"
@@ -122,8 +135,18 @@ def _fallback(reason: str) -> dict:
     }
 
 
-def _build_user_message(claim: str, chunks: list[str]) -> str:
-    context = "\n\n".join(chunks) if chunks else "No regulatory context available."
+def _build_user_message(claim: str, chunks: list[dict]) -> str:
+    if not chunks:
+        context = "No regulatory context available."
+    else:
+        # Label each excerpt with its source/section so the model can cite a
+        # specific, verifiable clause (e.g. "CBN 9.1", "NDPA PART VI") instead
+        # of guessing a section number from unlabelled text.
+        parts = []
+        for c in chunks:
+            label = f"[{c.get('source', '?')} {c.get('section', '?')}]"
+            parts.append(f"{label}\n{c.get('text', '')}")
+        context = "\n\n".join(parts)
     return f"POLICY CLAIM: {claim}\n\nREGULATORY CONTEXT:\n{context}"
 
 
@@ -151,7 +174,7 @@ def checker_agent(state: ComplianceState) -> ComplianceState:
     results: list[dict] = []
 
     for i, claim in enumerate(claims, start=1):
-        chunks: list[str] = retrieved.get(claim, [])
+        chunks: list[dict] = retrieved.get(claim, [])
 
         if not chunks:
             logger.warning(
@@ -165,22 +188,58 @@ def checker_agent(state: ComplianceState) -> ComplianceState:
 
         user_msg = _build_user_message(claim, chunks)
 
-        try:
-            response = client.chat.completions.create(
-                model=MODEL,
-                max_tokens=MAX_TOKENS,
-                temperature=TEMPERATURE,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user",   "content": user_msg},
-                ],
-            )
-            raw = response.choices[0].message.content or ""
-        except Exception as exc:
-            logger.error("checker_agent: Groq API error on claim %d — %s", i, exc)
+        raw = None
+        last_exc: Exception | None = None
+        rate_limited = False
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                response = client.chat.completions.create(
+                    model=MODEL,
+                    max_tokens=MAX_TOKENS,
+                    temperature=TEMPERATURE,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user",   "content": user_msg},
+                    ],
+                )
+                raw = response.choices[0].message.content or ""
+                break
+            except RateLimitError as exc:
+                # A 429 quota-exceeded error won't be fixed by retrying within
+                # seconds -- the daily/token budget is what's exhausted, not a
+                # transient blip. Fail fast: don't burn the remaining attempts
+                # (and their backoff delays) on a call that can't succeed.
+                last_exc = exc
+                rate_limited = True
+                logger.error(
+                    "checker_agent: Groq rate limit hit on claim %d — not retrying "
+                    "(quota-exceeded errors won't resolve within a retry window). %s",
+                    i, exc,
+                )
+                break
+            except Exception as exc:
+                last_exc = exc
+                if attempt < MAX_RETRIES:
+                    logger.warning(
+                        "checker_agent: Groq API error on claim %d, attempt %d/%d — %s. Retrying...",
+                        i, attempt, MAX_RETRIES, exc,
+                    )
+                    time.sleep(RETRY_BACKOFF_BASE_SECONDS * attempt)
+                else:
+                    logger.error(
+                        "checker_agent: Groq API error on claim %d — exhausted %d attempts. "
+                        "Last error: %s", i, MAX_RETRIES, exc,
+                    )
+
+        if raw is None:
+            if rate_limited:
+                reason = f"Groq quota/rate limit exceeded (not retried): {last_exc}"
+            else:
+                reason = f"API error after {MAX_RETRIES} attempts: {last_exc}"
             results.append({
                 "claim": claim,
-                **_fallback(f"API error: {exc}"),
+                **_fallback(reason),
             })
             continue
 

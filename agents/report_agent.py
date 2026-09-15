@@ -20,7 +20,7 @@ from agents.parser_agent import _get_client
 logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-MODEL       = "llama-3.3-70b-versatile"
+MODEL       = "openai/gpt-oss-120b"
 MAX_TOKENS  = 4096   # reports are long — give the model room
 TEMPERATURE = 0.2    # slight creativity for readable prose, but mostly deterministic
 
@@ -35,13 +35,24 @@ SYSTEM_PROMPT = (
     "compliance report for a Nigerian fintech company based on the assessment "
     "results provided. Include:\n\n"
     "1. An executive summary (2-3 sentences)\n"
-    "2. A compliance scorecard (count of COMPLIANT / NON_COMPLIANT / UNCLEAR)\n"
-    "3. A detailed findings section — for each finding include the claim, "
-    "status badge, regulation reference, and explanation\n"
+    "2. A compliance scorecard as a small markdown table (count of COMPLIANT / "
+    "NON_COMPLIANT / UNCLEAR)\n"
+    "3. A detailed findings section — one finding at a time, in this EXACT "
+    "structure, repeated per claim (do NOT use a table for this section):\n\n"
+    "### Finding {n}\n\n"
+    "**Claim:** {claim text}\n\n"
+    "**Status:** {status badge, e.g. ✅ COMPLIANT / ❌ NON-COMPLIANT / ⚠️ UNCLEAR}\n\n"
+    "**Regulation Reference:** {reference, or N/A}\n\n"
+    "**Explanation:** {explanation}\n\n"
+    "**Remediation:** {remediation text} (omit this line entirely if the claim "
+    "is COMPLIANT and has no remediation)\n\n"
+    "---\n\n"
     "4. A prioritized remediation checklist for all NON_COMPLIANT items\n"
     "5. A closing note on scope limitations (this assessment covers CBN Agent "
     "Banking Guidelines Oct 2025 and NDPC 2023 only)\n\n"
-    "Use clear markdown formatting with headers, bold labels, and bullet points."
+    "Use clear markdown formatting with headers and bold labels as shown above. "
+    "Only the scorecard should be a table — never render the detailed findings "
+    "as a table."
 )
 
 
@@ -150,6 +161,12 @@ def report_agent(state: ComplianceState) -> ComplianceState:
     Calls Groq to produce a structured markdown compliance report.
     Falls back to a locally-generated report if the API call fails.
     """
+    # Capture the incoming status BEFORE overwriting it -- parser_agent/checker_agent
+    # set distinct "... error: ..." vs "... warning: ..." strings, which is the only
+    # signal available here for telling "pipeline failed upstream" apart from
+    # "document genuinely had nothing to flag". Losing this distinction is what
+    # let a Groq API failure render as an indistinguishable, silent 0-finding report.
+    incoming_status = state.get("status", "")
     state["status"] = "Generating report..."
 
     results: list[dict] = state.get("compliance_results", [])
@@ -157,7 +174,18 @@ def report_agent(state: ComplianceState) -> ComplianceState:
     if not results:
         logger.warning("report_agent: compliance_results is empty.")
         state["final_report"] = _build_fallback_report([])
-        state["status"] = "Report generated (no findings to report)."
+        if "error" in incoming_status.lower():
+            state["final_report"] += (
+                "\n\n---\n\n"
+                f"> ⚠️ **This is not a clean compliance result.** An earlier "
+                f"pipeline step failed: *{incoming_status}*\n"
+                ">\n"
+                "> The zero counts above reflect that failure, not an assessment "
+                "of the document. Resolve the error and re-run the analysis."
+            )
+            state["status"] = incoming_status
+        else:
+            state["status"] = "Report generated (no findings to report)."
         return state
 
     user_message = json.dumps(results, indent=2, ensure_ascii=False)

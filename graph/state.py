@@ -17,7 +17,7 @@ from typing import TypedDict
 class ComplianceState(TypedDict):
     uploaded_text: str              # Raw text from the user-uploaded document
     policy_claims: list[str]        # Extracted policy claims from the parser agent
-    retrieved_chunks: dict          # Mapping: claim (str) -> list[str] of regulatory chunks
+    retrieved_chunks: dict          # Mapping: claim (str) -> list[dict] chunks ({"id","source","section","text"})
     compliance_results: list[dict]  # Per-claim compliance assessments from checker agent
     final_report: str               # Formatted markdown compliance report
     status: str                     # Current pipeline stage label (for UI progress updates)

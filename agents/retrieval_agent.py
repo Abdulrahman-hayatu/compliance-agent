@@ -34,7 +34,8 @@ def retrieval_agent(state: ComplianceState) -> ComplianceState:
         return state
 
     retriever = get_retriever()
-    retrieved: dict[str, list[str]] = {}
+    # Each value is now a list of chunk dicts: {"id", "source", "section", "text"}
+    retrieved: dict[str, list[dict]] = {}
     failed: list[str] = []
 
     for claim in claims:

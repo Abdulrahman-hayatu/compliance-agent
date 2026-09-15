@@ -21,7 +21,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-MODEL          = "llama-3.3-70b-versatile"
+MODEL          = "openai/gpt-oss-120b"
 MAX_TOKENS     = 2048
 TEMPERATURE    = 0.0   # deterministic output — we want consistent claim extraction
 

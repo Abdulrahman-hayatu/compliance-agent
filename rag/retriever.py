@@ -29,7 +29,7 @@ class ComplianceRetriever:
 
         self.index: faiss.IndexFlatL2 = faiss.read_index(FAISS_INDEX_PATH)
         with open(CHUNKS_PATH, "rb") as f:
-            self.chunks: list[str] = pickle.load(f)
+            self.chunks: list[dict] = pickle.load(f)
 
         if self.index.ntotal != len(self.chunks):
             raise RuntimeError(
@@ -38,11 +38,19 @@ class ComplianceRetriever:
                 "Re-run rag/indexer.py to rebuild both artifacts."
             )
 
+        if self.chunks and not isinstance(self.chunks[0], dict):
+            raise RuntimeError(
+                "chunks.pkl is in the old plain-string format (no stable ids/sections). "
+                "Re-run `python -m rag.indexer` to rebuild it in the new "
+                "{'id', 'source', 'section', 'text'} format before starting the app."
+            )
+
         self.model = SentenceTransformer(EMBEDDING_MODEL)
         self._dimension: int = self.index.d
     # The retrieve() method takes a query string and an optional top_k parameter (default 5),
-    # and returns a list of the most relevant text chunks from the index.
-    def retrieve(self, query: str, top_k: int = 5) -> list[str]:
+    # and returns a list of the most relevant chunk dicts from the index, each
+    # shaped {"id": str, "source": "CBN"|"NDPA", "section": str, "text": str}.
+    def retrieve(self, query: str, top_k: int = 5) -> list[dict]:
         query = query.strip() if isinstance(query, str) else ""
         if not query:
             raise ValueError("retrieve() called with an empty query string.")
