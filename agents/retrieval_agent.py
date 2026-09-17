@@ -40,7 +40,7 @@ def retrieval_agent(state: ComplianceState) -> ComplianceState:
 
     for claim in claims:
         try:
-            chunks = retriever.retrieve(claim, top_k=4)
+            chunks = retriever.retrieve(claim, top_k=3)
             retrieved[claim] = chunks
             logger.debug(
                 "retrieval_agent: claim='%.60s...' → %d chunks", claim, len(chunks)

@@ -29,7 +29,7 @@
 
 **gd_011** [CBN] ❌ **NON_COMPLIANT**  
 > A 16-year-old may be appointed as an individual Agent provided they have parental consent.
-- Clause IDs: cbn_016
+- Clause IDs: cbn_015
 - Rationale: Directly contradicts the 18-year minimum age requirement; no parental-consent exception exists.
 
 **gd_012** [CBN] ✅ **COMPLIANT**  

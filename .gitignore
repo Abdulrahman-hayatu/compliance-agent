@@ -43,5 +43,5 @@ tmp/
 temp/
 
 # datafiles
-data/*.pdf
+data/
 

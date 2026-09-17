@@ -1,0 +1,106 @@
+{
+  "verdict": {
+    "verdict_metrics": {
+      "accuracy": 0.9167,
+      "macro_f1": 0.9178,
+      "per_label": {
+        "COMPLIANT": {
+          "precision": 0.9444,
+          "recall": 0.9444,
+          "f1": 0.9444,
+          "support": 18
+        },
+        "NON_COMPLIANT": {
+          "precision": 0.9091,
+          "recall": 0.9091,
+          "f1": 0.9091,
+          "support": 22
+        },
+        "UNCLEAR": {
+          "precision": 0.9,
+          "recall": 0.9,
+          "f1": 0.9,
+          "support": 20
+        }
+      },
+      "confusion_matrix": {
+        "COMPLIANT": {
+          "COMPLIANT": 17,
+          "NON_COMPLIANT": 0,
+          "UNCLEAR": 1
+        },
+        "NON_COMPLIANT": {
+          "COMPLIANT": 1,
+          "NON_COMPLIANT": 20,
+          "UNCLEAR": 1
+        },
+        "UNCLEAR": {
+          "COMPLIANT": 0,
+          "NON_COMPLIANT": 2,
+          "UNCLEAR": 18
+        }
+      },
+      "total_examples": 60
+    },
+    "by_difficulty": {
+      "easy": {
+        "accuracy": 1.0,
+        "count": 15
+      },
+      "multi_hop": {
+        "accuracy": 0.8667,
+        "count": 15
+      },
+      "adversarial": {
+        "accuracy": 0.8667,
+        "count": 15
+      },
+      "out_of_scope": {
+        "accuracy": 0.9333,
+        "count": 15
+      }
+    },
+    "mismatches": [
+      {
+        "id": "gd_007",
+        "claim": "A data controller may reuse a customer's personal data for statistical research ",
+        "expected": "NON_COMPLIANT",
+        "actual": "UNCLEAR",
+        "actual_reference": "N/A",
+        "actual_explanation": "The provided excerpts do not cover whether data can be reused for statistical research without fresh consent, so compliance cannot be determined."
+      },
+      {
+        "id": "gd_021",
+        "claim": "A non-individual Agent's designated employee who conducts a transaction from a c",
+        "expected": "UNCLEAR",
+        "actual": "NON_COMPLIANT",
+        "actual_reference": "CBN 6.2",
+        "actual_explanation": "The guidelines state designated employees must operate only within the registered place of business, and a vehicle parked outside does not satisfy tha"
+      },
+      {
+        "id": "gd_029",
+        "claim": "A Principal or Super Agent must maintain and consult a shared list of Agents tha",
+        "expected": "NON_COMPLIANT",
+        "actual": "COMPLIANT",
+        "actual_reference": "CBN 9.3",
+        "actual_explanation": "The guidelines mandate Principals and Super Agents to keep a list of blacklisted, watch\u2011listed or convicted agents and to perform due\u2011diligence before"
+      },
+      {
+        "id": "gd_040",
+        "claim": "According to the Guidelines' definitions section, an 'agreed location' for an Ag",
+        "expected": "COMPLIANT",
+        "actual": "UNCLEAR",
+        "actual_reference": "N/A",
+        "actual_explanation": "The provided excerpts do not contain any definition of 'agreed location' or a requirement that it be at least a kiosk size."
+      },
+      {
+        "id": "gd_060",
+        "claim": "A data controller may satisfy its NDPA registration obligations by instead regis",
+        "expected": "UNCLEAR",
+        "actual": "NON_COMPLIANT",
+        "actual_reference": "NDPA 44",
+        "actual_explanation": "NDPA 44 mandates registration with the Commission under the Act, so using the repealed 2019 regulation does not satisfy the current registration requi"
+      }
+    ]
+  }
+}

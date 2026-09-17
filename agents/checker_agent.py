@@ -172,6 +172,8 @@ def checker_agent(state: ComplianceState) -> ComplianceState:
 
     client: Groq = _get_client()
     results: list[dict] = []
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
 
     for i, claim in enumerate(claims, start=1):
         chunks: list[dict] = retrieved.get(claim, [])
@@ -204,6 +206,16 @@ def checker_agent(state: ComplianceState) -> ComplianceState:
                     ],
                 )
                 raw = response.choices[0].message.content or ""
+                usage = getattr(response, "usage", None)
+                if usage is not None:
+                    p_tok = getattr(usage, "prompt_tokens", 0) or 0
+                    c_tok = getattr(usage, "completion_tokens", 0) or 0
+                    total_prompt_tokens += p_tok
+                    total_completion_tokens += c_tok
+                    logger.info(
+                        "checker_agent: claim %d token usage — prompt=%d, completion=%d, total=%d",
+                        i, p_tok, c_tok, p_tok + c_tok,
+                    )
                 break
             except RateLimitError as exc:
                 # A 429 quota-exceeded error won't be fixed by retrying within
@@ -260,4 +272,11 @@ def checker_agent(state: ComplianceState) -> ComplianceState:
     )
 
     logger.info("checker_agent: %s", state["status"])
+    logger.info(
+        "checker_agent: run total token usage — prompt=%d, completion=%d, total=%d "
+        "across %d claim(s), avg=%.0f tokens/claim",
+        total_prompt_tokens, total_completion_tokens,
+        total_prompt_tokens + total_completion_tokens, len(claims),
+        (total_prompt_tokens + total_completion_tokens) / len(claims) if claims else 0,
+    )
     return state
