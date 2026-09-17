@@ -14,7 +14,7 @@ license: apache-2.0
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-1C3C3C?logo=langchain&logoColor=white)](https://langchain-ai.github.io/langgraph/)
-[![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-F55036?logo=groq&logoColor=white)](https://console.groq.com)
+[![Groq](https://img.shields.io/badge/Groq-gpt--oss--120b-F55036?logo=groq&logoColor=white)](https://console.groq.com)
 [![Gradio](https://img.shields.io/badge/Gradio-UI-FF7C00?logo=gradio&logoColor=white)](https://gradio.app)
 [![HuggingFace](https://img.shields.io/badge/🤗%20Spaces-Live%20Demo-FFD21E)](https://huggingface.co/spaces/Abdulrahman-Hayatu/Nigerian-fintech-compliance-agent)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
@@ -27,7 +27,7 @@ A multi-agent LLM application that checks fintech policy documents against Niger
 
 ## ⚠️ Scope Notice
 
-> This tool covers the **CBN Agent Banking Guidelines (October 2025)** and the **Nigeria Data Protection Act 2023** only. It does not cover all CBN regulations. Outputs do not constitute legal advice always consult a qualified compliance officer.
+> This tool covers the **CBN Agent Banking Guidelines (October 2025)** and the **Nigeria Data Protection Act 2023** only. It does not cover all CBN regulations. Outputs do not constitute legal advice — always consult a qualified compliance officer.
 
 ---
 
@@ -38,9 +38,56 @@ The pipeline is built with **LangGraph** and runs four specialised agents in seq
 | Step | Agent | Role |
 |------|-------|------|
 | 1 | **Parser Agent** | Extracts discrete, testable policy claims from the uploaded document as a JSON array |
-| 2 | **Retrieval Agent** | Queries the FAISS index to fetch the top-4 most relevant regulatory chunks per claim |
+| 2 | **Retrieval Agent** | Queries the FAISS index to fetch the top-3 most relevant regulatory chunks per claim |
 | 3 | **Compliance Checker Agent** | Assesses each claim against its regulatory context — returns `COMPLIANT`, `NON_COMPLIANT`, or `UNCLEAR` with a clause reference and explanation |
 | 4 | **Report Generator Agent** | Produces a structured markdown report with executive summary, scorecard, findings, and remediation checklist |
+
+Every retrieved chunk carries a stable ID and a citable clause/section label (e.g. `[CBN 9.1]`, `[NDPA PART VI]`), and the Checker Agent is instructed to cite only from what was actually retrieved — if nothing relevant surfaces, it returns `UNCLEAR` with `N/A` rather than guessing a reference.
+
+---
+
+## Evaluation
+
+The pipeline is scored against a hand-reviewed **60-example golden dataset** (`eval/golden_dataset.jsonl`) spanning both source documents and four difficulty tiers:
+
+| Tier | Description |
+|------|-------------|
+| `easy` | Single-clause, direct lookup |
+| `multi_hop` | Requires connecting 2+ clauses |
+| `adversarial` | Worded to sound compliant while violating a clause, or vice versa |
+| `out_of_scope` | Genuinely outside both documents — correct answer is always `UNCLEAR` |
+
+Each example carries an `expected_verdict` and `expected_clause_ids` (referencing the real, stable chunk IDs), reviewed across multiple passes to verify every citation actually appears in the indexed text it claims to.
+
+### Running the eval harness
+
+```bash
+# Free — no Groq API calls, just checks retrieval quality
+python -m eval.run_eval --retrieval-only
+
+# Costs Groq tokens — runs the real checker_agent and scores verdicts
+python -m eval.run_eval --verdict --output eval/results.json
+
+# Smoke-test on a subset first
+python -m eval.run_eval --verdict --limit 10
+```
+
+`eval/metrics.py` computes per-label precision/recall/F1, a confusion matrix, context-recall (with partial credit), and accuracy broken down by difficulty tier — all as pure, unit-testable functions with no API dependency.
+
+### Latest result
+
+60/60 claims, full verdict pass:
+
+| Metric | Value |
+|---|---|
+| Accuracy | 91.7% |
+| Macro F1 | 0.918 |
+| Easy tier accuracy | 100% |
+| Multi-hop tier accuracy | 86.7% |
+| Adversarial tier accuracy | 86.7% |
+| Out-of-scope tier accuracy | 93.3% |
+
+The difficulty tiers discriminate as intended — accuracy drops on harder tiers rather than staying flat, which is evidence the dataset is actually testing different failure modes rather than one easy pattern repeated 60 times.
 
 ---
 
@@ -50,7 +97,7 @@ The pipeline is built with **LangGraph** and runs four specialised agents in seq
 |-----------|-----------|
 | Language | Python 3.10+ |
 | Agent Framework | LangGraph |
-| LLM API | Groq (`llama-3.3-70b-versatile`) |
+| LLM API | Groq (`openai/gpt-oss-120b`) |
 | Embeddings | `sentence-transformers` (`BAAI/bge-small-en-v1.5`) |
 | Vector Store | FAISS (`IndexFlatL2`) |
 | Document Parsing | `pdfplumber` |
@@ -102,13 +149,13 @@ python -m rag.indexer
 Expected output:
 
 ```
-CBN chunks : 41
-NDPC chunks: 13
-Total      : 54
+CBN chunks : 44
+NDPC chunks: 32
+Total      : 76
 ✓ Indexing complete.
 ```
 
-> ⚠️ **Do not run the indexer at app startup.** The index is pre-built and committed to the repo.
+>  **Do not run the indexer at app startup.** The index is pre-built and committed to the repo.
 
 ### 5. Run the app
 
@@ -232,6 +279,17 @@ git push space main    # Hugging Face Spaces
 
 ---
 
+## Reliability Notes
+
+A few production-hardening details worth calling out:
+
+- **Stable, metadata-rich chunk IDs.** Each indexed chunk carries a persistent ID (`cbn_014`, `ndpa_021`) plus its source document and clause/section number, so retrieved context can be cited and verified rather than treated as an anonymous blob of text.
+- **Grounded citations.** The Checker Agent is explicitly instructed to cite only the labels it was actually shown, and to return `N/A` rather than guessing when nothing relevant was retrieved.
+- **JSON-mode + bounded retries.** The Checker Agent's Groq calls use `response_format={"type": "json_object"}` and retry transient failures with backoff — except rate-limit (429) errors, which fail fast instead of burning retries and backoff delay on a call that can't succeed within the retry window.
+- **No silent failures.** If an earlier pipeline step errors out, the final report says so explicitly instead of rendering an indistinguishable "0 findings" result.
+
+---
+
 ## Project Structure
 
 ```
@@ -251,6 +309,12 @@ compliance-agent/
 │   ├── __init__.py
 │   ├── indexer.py            # Script to build and save FAISS index (run once)
 │   └── retriever.py          # FAISS query interface (singleton)
+├── eval/
+│   ├── golden_dataset.jsonl        # 60-example hand-reviewed eval set
+│   ├── golden_dataset_review.md    # Human-readable version, grouped by tier
+│   ├── metrics.py                  # Pure metric functions (P/R/F1, context recall)
+│   ├── run_eval.py                 # CLI harness — --retrieval-only / --verdict
+│   └── first_results.json          # Latest full verdict-pass run
 ├── data/
 │   ├── CIRCULAR AND GUIDELINES FOR THE OPERATIONS OF AGENT BANKING IN NIGERIA OCTOBER 6 2025.pdf
 │   └── Nigeria_Data_Protection_Act_2023.pdf
