@@ -48,7 +48,7 @@ def retrieval_agent(state: ComplianceState) -> ComplianceState:
         except Exception as exc:
             # One bad claim should not abort the entire pipeline
             logger.error(
-                "retrieval_agent: retrieval failed for claim '%.60s' — %s", claim, exc
+                "retrieval_agent: retrieval failed for claim '%.60s' %s", claim, exc
             )
             retrieved[claim] = []   # empty list keeps the key present for checker_agent
             failed.append(claim)

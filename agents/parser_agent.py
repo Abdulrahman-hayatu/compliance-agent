@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # ── Constants ──────────────────────────────────────────────────────────────────
 MODEL          = "openai/gpt-oss-120b"
 MAX_TOKENS     = 2048
-TEMPERATURE    = 0.0   # deterministic output — we want consistent claim extraction
+TEMPERATURE    = 0.0   # deterministic output for consistent claim extraction
 
 SYSTEM_PROMPT  = (
     "You are a regulatory compliance analyst. Your task is to extract discrete, "
@@ -57,7 +57,7 @@ def _parse_claims(raw: str) -> list[str]:
     Robustly extract a list of claim strings from the LLM response.
 
     Strategy (in order):
-    1. Direct json.loads() — works when the model behaves.
+    1. Direct json.loads() works when the model behaves.
     2. Strip markdown code fences, try again.
     3. Regex-extract the first [...] block, try again.
     4. Fallback: split on newlines, clean up each line.
@@ -95,7 +95,7 @@ def _parse_claims(raw: str) -> list[str]:
 
     # Strategy 4: newline fallback
     logger.warning(
-        "parser_agent: all JSON strategies failed — falling back to newline split. "
+        "parser_agent: all JSON strategies failed falling back to newline split. "
         "Raw response (first 300 chars): %s", text[:300]
     )
     claims = []
@@ -121,7 +121,7 @@ def parser_agent(state: ComplianceState) -> ComplianceState:
 
     uploaded_text = state.get("uploaded_text", "").strip()
     if not uploaded_text:
-        logger.warning("parser_agent: uploaded_text is empty — returning no claims.")
+        logger.warning("parser_agent: uploaded_text is empty returning no claims.")
         state["policy_claims"] = []
         state["status"] = "Parser error: no document text provided."
         return state
@@ -150,7 +150,7 @@ def parser_agent(state: ComplianceState) -> ComplianceState:
         logger.debug("parser_agent raw response (first 500 chars): %s", raw[:500])
 
     except Exception as exc:
-        logger.error("parser_agent: Groq API call failed — %s", exc)
+        logger.error("parser_agent: Groq API call failed %s", exc)
         state["policy_claims"] = []
         state["status"] = f"Parser error: Groq API call failed ({exc})"
         return state

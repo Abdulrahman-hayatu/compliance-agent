@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 MODEL       = "openai/gpt-oss-120b"
 MAX_TOKENS  = 512
 TEMPERATURE = 0.0
-MAX_RETRIES = 3       # per Groq's own recommended pattern for transient API/JSON-validation failures
-RETRY_BACKOFF_BASE_SECONDS = 1.5   # attempt 1: 1.5s, attempt 2: 3.0s
+MAX_RETRIES = 3       
+RETRY_BACKOFF_BASE_SECONDS = 1.5  
 
 VALID_STATUSES = {"COMPLIANT", "NON_COMPLIANT", "UNCLEAR"}
 REQUIRED_KEYS  = {"status", "regulation_reference", "explanation", "remediation"}
@@ -40,11 +40,11 @@ SYSTEM_PROMPT = (
     "- UNCLEAR: insufficient information to determine compliance\n\n"
     "Each excerpt in REGULATORY CONTEXT is labelled with its source and "
     "section, e.g. '[CBN 9.1]' or '[NDPA PART VI]'. When you cite a "
-    "regulation, use exactly one of these labels — do not invent a section "
+    "regulation, use exactly one of these labels do not invent a section "
     "number that is not shown in the context.\n\n"
-    "If NONE of the provided excerpts actually address the claim — the "
+    "If NONE of the provided excerpts actually address the claim the "
     "retrieved context is simply the nearest match found, not a guarantee "
-    "of relevance — set status to UNCLEAR and set regulation_reference to "
+    "of relevance set status to UNCLEAR and set regulation_reference to "
     "\"N/A\". Do not cite one of the labels just because it was offered; "
     "only cite a label when that excerpt genuinely supports your "
     "explanation.\n\n"
@@ -93,7 +93,7 @@ def _parse_checker_response(raw: str) -> dict:
         or (match and _load(match.group()))
     )
 
-    if not parsed:   # None or empty dict — both mean no usable data
+    if not parsed:   # None or empty dict means no usable data
         logger.warning("checker_agent: all JSON strategies failed. Raw: %.200s", text)
         return _fallback("JSON parse failed — model returned unparseable output.")
 
@@ -180,7 +180,7 @@ def checker_agent(state: ComplianceState) -> ComplianceState:
 
         if not chunks:
             logger.warning(
-                "checker_agent: no regulatory chunks for claim %d — marking UNCLEAR.", i
+                "checker_agent: no regulatory chunks for claim %d  marking UNCLEAR.", i
             )
             results.append({
                 "claim": claim,
@@ -219,13 +219,13 @@ def checker_agent(state: ComplianceState) -> ComplianceState:
                 break
             except RateLimitError as exc:
                 # A 429 quota-exceeded error won't be fixed by retrying within
-                # seconds -- the daily/token budget is what's exhausted, not a
+                # seconds the daily/token budget is what's exhausted, not a
                 # transient blip. Fail fast: don't burn the remaining attempts
                 # (and their backoff delays) on a call that can't succeed.
                 last_exc = exc
                 rate_limited = True
                 logger.error(
-                    "checker_agent: Groq rate limit hit on claim %d — not retrying "
+                    "checker_agent: Groq rate limit hit on claim %d not retrying "
                     "(quota-exceeded errors won't resolve within a retry window). %s",
                     i, exc,
                 )
@@ -234,13 +234,13 @@ def checker_agent(state: ComplianceState) -> ComplianceState:
                 last_exc = exc
                 if attempt < MAX_RETRIES:
                     logger.warning(
-                        "checker_agent: Groq API error on claim %d, attempt %d/%d — %s. Retrying...",
+                        "checker_agent: Groq API error on claim %d, attempt %d/%d %s. Retrying...",
                         i, attempt, MAX_RETRIES, exc,
                     )
                     time.sleep(RETRY_BACKOFF_BASE_SECONDS * attempt)
                 else:
                     logger.error(
-                        "checker_agent: Groq API error on claim %d — exhausted %d attempts. "
+                        "checker_agent: Groq API error on claim %d exhausted %d attempts. "
                         "Last error: %s", i, MAX_RETRIES, exc,
                     )
 

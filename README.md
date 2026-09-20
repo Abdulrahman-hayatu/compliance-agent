@@ -21,11 +21,11 @@ license: apache-2.0
 
 A multi-agent LLM application that checks fintech policy documents against Nigerian regulatory frameworks. Upload a PDF or TXT policy document and the pipeline extracts discrete policy claims, retrieves relevant regulatory clauses from a pre-built FAISS vector index, assesses each claim for compliance, and produces a structured markdown report with a prioritised remediation checklist. The tool covers two frameworks: the **CBN Circular and Guidelines for the Operations of Agent Banking in Nigeria (October 6, 2025)** and the **Nigeria Data Protection Act 2023 (NDPC)**.
 
-**[🚀 Try the Live Demo](https://huggingface.co/spaces/Abdulrahman-Hayatu/Nigerian-fintech-compliance-agent)**
+**[Try the Live Demo](https://huggingface.co/spaces/Abdulrahman-Hayatu/Nigerian-fintech-compliance-agent)**
 
 ---
 
-## ⚠️ Scope Notice
+## Scope Notice
 
 > This tool covers the **CBN Agent Banking Guidelines (October 2025)** and the **Nigeria Data Protection Act 2023** only. It does not cover all CBN regulations. Outputs do not constitute legal advice — always consult a qualified compliance officer.
 

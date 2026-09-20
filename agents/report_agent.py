@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 MODEL       = "openai/gpt-oss-120b"
-MAX_TOKENS  = 4096   # reports are long — give the model room
-TEMPERATURE = 0.2    # slight creativity for readable prose, but mostly deterministic
+MAX_TOKENS  = 4096   
+TEMPERATURE = 0.2    
 
 STATUS_BADGE = {
-    "COMPLIANT":     "✅ COMPLIANT",
-    "NON_COMPLIANT": "❌ NON-COMPLIANT",
-    "UNCLEAR":       "⚠️ UNCLEAR",
+    "COMPLIANT":     "COMPLIANT",
+    "NON_COMPLIANT": "NON-COMPLIANT",
+    "UNCLEAR":       "UNCLEAR",
 }
 
 SYSTEM_PROMPT = (
@@ -37,11 +37,11 @@ SYSTEM_PROMPT = (
     "1. An executive summary (2-3 sentences)\n"
     "2. A compliance scorecard as a small markdown table (count of COMPLIANT / "
     "NON_COMPLIANT / UNCLEAR)\n"
-    "3. A detailed findings section — one finding at a time, in this EXACT "
+    "3. A detailed findings section one finding at a time, in this EXACT "
     "structure, repeated per claim (do NOT use a table for this section):\n\n"
     "### Finding {n}\n\n"
     "**Claim:** {claim text}\n\n"
-    "**Status:** {status badge, e.g. ✅ COMPLIANT / ❌ NON-COMPLIANT / ⚠️ UNCLEAR}\n\n"
+    "**Status:** {status badge, e.g. COMPLIANT / NON-COMPLIANT / UNCLEAR}\n\n"
     "**Regulation Reference:** {reference, or N/A}\n\n"
     "**Explanation:** {explanation}\n\n"
     "**Remediation:** {remediation text} (omit this line entirely if the claim "
@@ -91,9 +91,9 @@ def _build_fallback_report(results: list[dict]) -> str:
         "",
         f"| Status | Count |",
         f"|--------|-------|",
-        f"| ✅ Compliant     | {counts['COMPLIANT']} |",
-        f"| ❌ Non-Compliant | {counts['NON_COMPLIANT']} |",
-        f"| ⚠️ Unclear       | {counts['UNCLEAR']} |",
+        f"| COMPLIANT     | {counts['COMPLIANT']} |",
+        f"| NON-COMPLIANT | {counts['NON_COMPLIANT']} |",
+        f"| UNCLEAR       | {counts['UNCLEAR']} |",
         f"| **Total**        | **{total}** |",
         "",
         "---",
@@ -103,7 +103,7 @@ def _build_fallback_report(results: list[dict]) -> str:
     ]
 
     for i, r in enumerate(results, start=1):
-        badge = STATUS_BADGE.get(r.get("status", "UNCLEAR"), "⚠️ UNCLEAR")
+        badge = STATUS_BADGE.get(r.get("status", "UNCLEAR"), "UNCLEAR")
         lines += [
             f"### Finding {i}",
             "",
@@ -177,7 +177,7 @@ def report_agent(state: ComplianceState) -> ComplianceState:
         if "error" in incoming_status.lower():
             state["final_report"] += (
                 "\n\n---\n\n"
-                f"> ⚠️ **This is not a clean compliance result.** An earlier "
+                f"> **This is not a clean compliance result.** An earlier "
                 f"pipeline step failed: *{incoming_status}*\n"
                 ">\n"
                 "> The zero counts above reflect that failure, not an assessment "
@@ -215,7 +215,7 @@ def report_agent(state: ComplianceState) -> ComplianceState:
         report = _build_fallback_report(results)
         report += (
             "\n\n---\n\n"
-            "> ⚠️ **Note:** This report was generated locally due to an API error. "
+            "> **Note:** This report was generated locally due to an API error. "
             "Re-run the analysis for an LLM-enhanced report."
         )
 
